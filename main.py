@@ -288,7 +288,7 @@ class Player(pygame.sprite.Sprite):
     def player_collide_with_enemy_bullets(self, bullet):
         if not (self.invincible or self.is_magic_defense):
             self.hp -= bullet.attack
-            num = random.randint(0,1)
+            num = random.randint(0, 1)
             getshot_sound[num].play()
 
     # 玩家碰到雷射，要被扣血
@@ -296,10 +296,9 @@ class Player(pygame.sprite.Sprite):
         if not (self.invincible or self.is_magic_defense):
             self.hp -= 2
             now = pygame.time.get_ticks()
-            if now - self.laser_shot_sound_clock >200:
+            if now - self.laser_shot_sound_clock > 200:
                 getshot_sound[4].play()
                 self.laser_shot_sound_clock = now
-
 
     def hide(self):
         self.hidden = True
@@ -451,10 +450,12 @@ class Magicdefense(pygame.sprite.Sprite):
 
 # 基本飛機
 class BasicEnemy(Enemy):
-    def __init__(self, img, hp, x, y):
+    def __init__(self, img, hp, x, y, x_move_range, to_y):
         super().__init__(img, hp, x, y)
         self.ori_x = x
+        self.to_y = to_y
         self.speedx = 1
+        self.x_move_range = x_move_range
         self.bullet_img = pygame.transform.scale(pygame.image.load(
             os.path.join("img", "enemy_bullet1.png")).convert(), (15, 20))
 
@@ -462,24 +463,28 @@ class BasicEnemy(Enemy):
 
     def shoot(self):
         now = pygame.time.get_ticks()
-        if (now - self.bullet_clock > 200):
+        if (now - self.bullet_clock > 400):
             self.bullet_clock = now
             Bullet(self.rect.centerx, self.rect.bottom+10,
                    self.bullet_img, 0, 10, 10, self)
+            Bullet(self.rect.centerx-10, self.rect.bottom+10,
+                   self.bullet_img, -6, 8, 10, self)
+            Bullet(self.rect.centerx+10, self.rect.bottom+10,
+                   self.bullet_img, 6, 8, 10, self)
 
     def update(self):
-        if self.rect.y < 200:
+        if self.rect.y < self.to_y:
             self.rect.y += 2
-        elif self.rect.y > 200:
-            self.rect.y = 200
-        elif self.rect.y == 200:
+        elif self.rect.y > self.to_y:
+            self.rect.y = self.to_y
+        elif self.rect.y == self.to_y:
+            if self.x_move_range != 0:
+                if self.rect.x < (self.ori_x-self.x_move_range):
+                    self.speedx = 1
+                if self.rect.x > (self.ori_x+self.x_move_range):
+                    self.speedx = -1
 
-            if self.rect.x < (self.ori_x-100):
-                self.speedx = 1
-            if self.rect.x > (self.ori_x+100):
-                self.speedx = -1
-
-            self.rect.x += self.speedx
+                self.rect.x += self.speedx
             self.shoot()
 
         if self.hp <= 0:
@@ -539,11 +544,21 @@ class BasicEnemy2(Enemy):
 
 
 class BasicEnemy3(Enemy):
-    def __init__(self, img, hp, x, y, player):
+    def __init__(self, img, hp, x, y, player, to_y):
         super().__init__(img, hp, x, y)
+        self.to_y = to_y
         self.ori_x = x
-        self.speedx = 1
         self.player = player
+        self.isSetting = False
+
+        if 0 == random.randint(0, 1):
+            self.speedx = -1
+        else:
+            self.speedx = 1
+        if 0 == random.randint(0, 1):
+            self.speedy = -1
+        else:
+            self.speedy = 1
 
     def shoot(self):
         now = pygame.time.get_ticks()
@@ -554,19 +569,25 @@ class BasicEnemy3(Enemy):
             tracebullet_sound.play()
 
     def update(self):
-        if self.rect.y < 200:
-            self.rect.y += 3
-        elif self.rect.y > 200:
-            self.rect.y = 200
-        elif self.rect.y == 200:
-
-            if self.rect.x < (self.ori_x-100):
-                self.speedx = 1
-            if self.rect.x > (self.ori_x+100):
-                self.speedx = -1
-
+        if not self.isSetting:
+            if self.rect.y < self.to_y:
+                self.rect.y += 3
+            elif self.rect.y >= self.to_y:
+                self.rect.y = self.to_y
+                self.isSetting = True
+        else:
             self.rect.x += self.speedx
-            self.shoot()
+            self.rect.y += self.speedy
+            if self.rect.x < (self.ori_x-120):
+                self.speedx = 1
+            if self.rect.x > (self.ori_x+120):
+                self.speedx = -1
+            if self.rect.y < (self.to_y-50):
+                self.speedy = 1
+            if self.rect.y > (self.to_y+50):
+                self.speedy = -1
+
+        self.shoot()
 
         if self.hp <= 0:
             Animation(explosion_img, self.rect.centerx, self.rect.centery)
@@ -1048,16 +1069,16 @@ def main():
             Satellite(satellite_img, 100, -50, -50)
             Satellite(satellite_img, 100, -50, -50)
             Satellite(satellite_img, 100, -50, -50)
-            # BasicEnemy3(ufo_img, 50, 350, -20, player)
-            # BasicEnemy3(ufo_img, 50, 150, -20, player)
+            BasicEnemy3(ufo_img, 50, 300, -20, player, 250)
+            BasicEnemy3(ufo_img, 50, 150, -20, player, 350)
             # Award(gun_img, 100, 100, "gun")
             # Award(clock_img, 200, 200, "clock")
             # Shield(shield_img, 200, 200)
             # Magicdefense(magicdefense_img, 200, 200)
-            # BasicEnemy2(cactus_img, 50, 220, -20, 50, 200)
-            # BasicEnemy(enemy1_img, 50, 150, -20)
-            # BasicEnemy(enemy1_img, 50, 350, -20)
-            # Blackhole(player)
+            BasicEnemy2(cactus_img, 50, 220, -20, 50, 200)
+            BasicEnemy(enemy1_img, 50, 150, -20, 0, 50)
+            BasicEnemy(enemy1_img, 50, 350, -20, 0,80)
+            Blackhole(player)
 
         # 測試動畫是否正常
         # now = pygame.time.get_ticks()
